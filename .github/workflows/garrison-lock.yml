@@ -1,0 +1,22 @@
+# Re-resolves pdf-inspector in Cargo.lock (after a Cargo.toml change) and
+# uploads the lock file, for committing without a local Rust toolchain.
+name: Garrison lock refresh
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lock:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo update -p pdf-inspector
+      - run: git diff --stat Cargo.lock && grep -A3 'name = "pdf-inspector"' Cargo.lock
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cargo-lock
+          path: Cargo.lock

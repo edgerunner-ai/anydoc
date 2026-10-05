@@ -27,10 +27,16 @@ csv = "1.4.0"
 flate2 = "1"
 encoding_rs = "0.8.35"
 log = "0.4"
-pdf-inspector = "1.20.0"
+pdf-inspector = "1.25.2"
 quick-xml = "0.41.0"
 zip = { version = "8.6.0", default-features = false, features = ["deflate"] }
 
 [profile.release]
 lto = "thin"
 strip = "symbols"
+
+# edgerunner-ai/pdf-inspector `garrison`: 1.25.2 plus fixes not yet upstream
+# (the Markdown folio filter dropped numeric table cells on turned pages and
+# in margin rows). Drop once a pdf-inspector release carries them.
+[patch.crates-io]
+pdf-inspector = { git = "https://github.com/edgerunner-ai/pdf-inspector", rev = "0aa944a2cd8e0eeb0bc22eb281d4f8019c480fe2" }
