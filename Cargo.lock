@@ -966,9 +966,8 @@ checksum = "384b8ab6d37215f3c5301a95a4accb5d64aa607f1fcb26a11b5303878451b4fe"
 
 [[package]]
 name = "pdf-inspector"
-version = "1.20.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dfa8858423125d0d4cf7bb249a4df85fbabb3bdcdb4dcfeadee9c4d13c762277"
+version = "1.25.2"
+source = "git+https://github.com/edgerunner-ai/pdf-inspector?rev=0aa944a2cd8e0eeb0bc22eb281d4f8019c480fe2#0aa944a2cd8e0eeb0bc22eb281d4f8019c480fe2"
 dependencies = [
  "env_logger",
  "include_dir",
@@ -979,6 +978,7 @@ dependencies = [
  "regex",
  "thiserror",
  "ttf-parser",
+ "unicode-bidi",
  "unicode-normalization",
 ]
 
