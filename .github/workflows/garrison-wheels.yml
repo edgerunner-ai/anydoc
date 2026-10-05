@@ -1,0 +1,92 @@
+# Wheels for Garrison (edgerunner-ai/garrison), built from the `garrison`
+# branch: upstream anydoc plus a newer pdf-inspector (see firecrawl/anydoc#175).
+# Uses GitHub-hosted runners; the upstream workflows need Firecrawl's
+# Blacksmith runners and only trigger on main, pull requests and v* tags.
+#
+# Push a `garrison-v*` tag to build, test and publish a GitHub Release with
+# the wheels; manual dispatch builds and tests without releasing.
+name: Garrison wheels
+
+on:
+  push:
+    tags: ['garrison-v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-rust:
+    name: Rust tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test --locked
+
+  build-wheels:
+    name: Wheel (${{ matrix.target }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            host: ubuntu-latest
+            manylinux: '2014'
+          - target: aarch64-unknown-linux-gnu
+            host: ubuntu-24.04-arm
+            manylinux: '2014'
+          - target: x86_64-apple-darwin
+            host: macos-latest
+            cross: true
+          - target: aarch64-apple-darwin
+            host: macos-latest
+          - target: x86_64-pc-windows-msvc
+            host: windows-latest
+    runs-on: ${{ matrix.host }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.target }}
+          manylinux: ${{ matrix.manylinux || '' }}
+          args: --release --locked --manifest-path python/Cargo.toml --out dist
+      # Must run from the repo root: with python/ as cwd, the source anydoc/
+      # package dir shadows the installed compiled module.
+      - name: Test wheel
+        if: ${{ !matrix.cross }}
+        shell: bash
+        run: |
+          pip install --no-index --find-links dist firecrawl-anydoc
+          python -m unittest discover -s python/tests
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-${{ matrix.target }}
+          path: dist/*.whl
+          if-no-files-found: error
+
+  release:
+    name: GitHub Release
+    if: startsWith(github.ref, 'refs/tags/garrison-v')
+    needs: [test-rust, build-wheels]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: wheels-*
+          path: dist
+          merge-multiple: true
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/*.whl \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "$GITHUB_REF_NAME" \
+            --notes "anydoc 0.2.4 with pdf-inspector 1.20.0 (firecrawl/anydoc#175), built for Garrison. Includes line-end dehyphenation (firecrawl/pdf-inspector#388) and the RTL extraction fix. Drop this once firecrawl-anydoc on PyPI ships pdf-inspector >= 1.15."
