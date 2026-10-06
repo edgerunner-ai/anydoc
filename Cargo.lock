@@ -967,7 +967,7 @@ checksum = "384b8ab6d37215f3c5301a95a4accb5d64aa607f1fcb26a11b5303878451b4fe"
 [[package]]
 name = "pdf-inspector"
 version = "1.25.2"
-source = "git+https://github.com/edgerunner-ai/pdf-inspector?rev=0aa944a2cd8e0eeb0bc22eb281d4f8019c480fe2#0aa944a2cd8e0eeb0bc22eb281d4f8019c480fe2"
+source = "git+https://github.com/edgerunner-ai/pdf-inspector?rev=69e35ccb240c860de9ee6660a551dbcce8fefaa1#69e35ccb240c860de9ee6660a551dbcce8fefaa1"
 dependencies = [
  "env_logger",
  "include_dir",
