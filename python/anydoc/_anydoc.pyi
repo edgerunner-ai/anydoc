@@ -10,7 +10,9 @@ Format = Literal[
 class ConvertError(Exception):
     """A complete conversion was impossible. Catch this to handle every kind
     of failure, or one of the subclasses below to single one out. An
-    unreadable file raises `OSError` instead."""
+    unreadable file raises `OSError` instead. An internal error (a bug in a
+    converter) raises this base class with a message starting
+    `internal error:`."""
 
 class UnsupportedError(ConvertError):
     """The format is unknown, or cannot be converted at all."""

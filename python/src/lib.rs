@@ -1,5 +1,7 @@
 //! Python bindings for anydoc.
 
+use std::any::Any;
+use std::panic::{self, AssertUnwindSafe};
 use std::path::PathBuf;
 
 use pyo3::create_exception;
@@ -14,7 +16,8 @@ create_exception!(
     PyException,
     "A complete conversion was impossible. Catch this to handle every kind of \
      failure, or one of the subclasses below to single one out. An unreadable \
-     file raises `OSError` instead."
+     file raises `OSError` instead. An internal error (a bug in a converter) \
+     raises this base class with a message starting `internal error:`."
 );
 
 create_exception!(
@@ -138,6 +141,37 @@ fn convert_error(py: Python<'_>, error: anydoc::ConvertError) -> PyErr {
     detail.err().unwrap_or(raised)
 }
 
+/// Run a conversion without the GIL and turn a Rust panic into a
+/// `ConvertError`.
+///
+/// Left alone, PyO3 re-raises a panic as `pyo3_runtime.PanicException`, which
+/// derives from `BaseException`: an application's `except Exception` misses
+/// it and a request handler or worker thread dies without a trace of which
+/// document did it. Every converter is fuzzed against panics, so one is a
+/// converter bug in a specific file; it surfaces as a failed conversion whose
+/// message carries the panic's. The default hook still prints the panic and
+/// its source location to stderr.
+fn convert<T: Send>(
+    py: Python<'_>,
+    run: impl FnOnce() -> Result<T, anydoc::ConvertError> + Send,
+) -> PyResult<T> {
+    match py.detach(|| panic::catch_unwind(AssertUnwindSafe(run))) {
+        Ok(result) => result.map_err(|e| convert_error(py, e)),
+        Err(payload) => Err(ConvertError::new_err(format!(
+            "internal error: anydoc panicked: {}",
+            panic_message(payload.as_ref())
+        ))),
+    }
+}
+
+fn panic_message(payload: &(dyn Any + Send)) -> &str {
+    payload
+        .downcast_ref::<&str>()
+        .copied()
+        .or_else(|| payload.downcast_ref::<String>().map(String::as_str))
+        .unwrap_or("non-string panic payload")
+}
+
 /// Detect the format from the content itself: the signature and identity each
 /// container specification designates (PDF header, RTF open group, OLE stream
 /// names, ZIP package mimetype/content types). Plain-text formats (CSV) carry
@@ -164,7 +198,7 @@ fn format_from_path(path: PathBuf) -> Option<&'static str> {
 /// and unrecognizable containers.
 #[pyfunction]
 fn to_markdown(py: Python<'_>, path: PathBuf) -> PyResult<String> {
-    py.detach(|| anydoc::to_markdown(&path)).map_err(|e| convert_error(py, e))
+    convert(py, || anydoc::to_markdown(&path))
 }
 
 /// Convert an in-memory document to Markdown. Without a format, it is
@@ -174,7 +208,7 @@ fn to_markdown(py: Python<'_>, path: PathBuf) -> PyResult<String> {
 #[pyo3(signature = (data, format=None))]
 fn to_markdown_bytes(py: Python<'_>, data: Vec<u8>, format: Option<&str>) -> PyResult<String> {
     let format = format.map(parse_format).transpose()?;
-    py.detach(|| anydoc::to_markdown_bytes(&data, format)).map_err(|e| convert_error(py, e))
+    convert(py, || anydoc::to_markdown_bytes(&data, format))
 }
 
 /// Parse an in-memory document into the document model, which also carries
@@ -190,8 +224,7 @@ fn to_document(
     format: Option<&str>,
 ) -> PyResult<document::Document> {
     let format = format.map(parse_format).transpose()?;
-    let parsed =
-        py.detach(|| anydoc::to_document(&data, format)).map_err(|e| convert_error(py, e))?;
+    let parsed = convert(py, || anydoc::to_document(&data, format))?;
     document::document(py, parsed)
 }
 
