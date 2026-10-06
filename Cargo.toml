@@ -36,7 +36,9 @@ lto = "thin"
 strip = "symbols"
 
 # edgerunner-ai/pdf-inspector `garrison`: 1.25.2 plus fixes not yet upstream
-# (the Markdown folio filter dropped numeric table cells on turned pages and
-# in margin rows). Drop once a pdf-inspector release carries them.
+# (numeric table cells dropped as page numbers on turned pages and in margin
+# rows; ruled tables wider than 20 columns rejected; shaded header bands not
+# closed in the thin-rect table fallback). Drop once a pdf-inspector release
+# carries them.
 [patch.crates-io]
-pdf-inspector = { git = "https://github.com/edgerunner-ai/pdf-inspector", rev = "0aa944a2cd8e0eeb0bc22eb281d4f8019c480fe2" }
+pdf-inspector = { git = "https://github.com/edgerunner-ai/pdf-inspector", rev = "69e35ccb240c860de9ee6660a551dbcce8fefaa1" }
